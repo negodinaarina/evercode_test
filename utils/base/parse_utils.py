@@ -2,7 +2,7 @@ from typing import Any
 
 from config import settings
 
-def parse_exchanges_response(exchanges_list: list[str]):
+def parse_exchanges(exchanges_list: list[str]):
     """
     Функция для анализа бирж.
 
@@ -19,17 +19,15 @@ def parse_exchanges_response(exchanges_list: list[str]):
 
     alt_exchanges = sorted({ex for ex in all_exchanges if ex.lower() not in map(str.lower, settings.TARGET_EXCHANGES)})
 
-    return exchanges_flags, alt_exchanges
+    return {"base_exchanges": exchanges_flags, "alternative_exchanges": alt_exchanges}
 
-def get_networks(coin_data: dict[str, Any]):
+def parse_networks(platforms: dict[str, Any], coin_id: str):
     """
     Определяет, в каких блокчейн-сетях доступен токен.
     Для токенов возвращает список сетей (Ethereum, BNB Chain, Solana и т.д.).
     Для Layer-1 монет (BTC, ETH, SOL) возвращает их собственную сеть.
     """
-    platforms = coin_data.get("platforms", {})
-
-    if platforms:
-        return [net.lower() for net, address in platforms.items() if address]
-
-    return [coin_data.get("id", "").lower()]
+    valid_networks = [net.lower() for net, addr in platforms.items() if addr and net.strip() and str(addr).strip()]
+    if valid_networks:
+        return sorted(list(dict.fromkeys(valid_networks)))
+    return [coin_id, ]

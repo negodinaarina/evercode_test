@@ -1,8 +1,12 @@
-from services.base import BaseClient
+from aiolimiter import AsyncLimiter
+from services.base import BaseHTTPClient, ClientInterface
+from config import settings
 
 TARGET_EXCHANGES = {"binance", "bybit", "kucoin"}
 
-class CoinGeckoClient(BaseClient):
+class CoinGeckoHTTPClient(BaseHTTPClient, ClientInterface):
+    _limiter = AsyncLimiter(max_rate=settings.COINGECKO_MAX_REQUESTS_PER_MINUTE, time_period=60)
+
     async def get_coin_detailed_data(self, coin_id: str):
         """
         Получить подробную информацию по монете
@@ -43,6 +47,6 @@ class CoinGeckoClient(BaseClient):
         return (await self._get(url=f"/coins/{coin_id}/tickers")).get("tickers")
 
 
-coin_gecko_client = CoinGeckoClient(
-    base_url="https://api.coingecko.com/api/v3"
+coin_gecko_client = CoinGeckoHTTPClient(
+    base_url=settings.COIN_GECKO_URL
 )

@@ -1,5 +1,7 @@
 import enum
-from typing import Any, Union
+from aiolimiter import AsyncLimiter
+from abc import ABC, abstractmethod
+from typing import Any, Union, Dict, List
 
 from httpx import AsyncClient, ConnectTimeout, Limits, ReadTimeout, Timeout
 from tenacity import (
@@ -21,7 +23,9 @@ class HTTPMethods(enum.StrEnum):
 ResponseType = Union[list, dict]
 
 
-class BaseClient:
+class BaseHTTPClient:
+    _limiter = AsyncLimiter(max_rate=settings.REQUEST_PER_MINUTE, time_period=60)
+
     def __init__(
         self, base_url: str, headers: dict[str, Any] | None = None
     ) -> None:
@@ -66,18 +70,14 @@ class BaseClient:
         url: str,
         **kwargs,
     ) -> ResponseType:
-        response = await self._client.request(
-            method=method,
-            url=url,
-            **kwargs,
-        )
+        async with self._limiter:
+            response = await self._client.request(method=method, url=url, **kwargs)
 
         if response.status_code >= 300:
             raise ClientException(
                 status_code=response.status_code,
                 detail=response.text,
             )
-
         return response.json()
 
     async def _get(
@@ -92,3 +92,20 @@ class BaseClient:
             params=params,
             **kwargs,
         )
+
+class ClientInterface(ABC):
+    @abstractmethod
+    async def get_coin_detailed_data(self, coin_id: str) -> Dict[str, Any]:
+        pass
+
+    @abstractmethod
+    async def get_top_by_volume(self, limit: int) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    async def get_top_by_listing_date(self, limit: int) -> List[Dict[str, Any]]:
+        pass
+
+    @abstractmethod
+    async def get_exchanges(self, coin_id: str) -> List[Dict[str, str]]:
+        pass
